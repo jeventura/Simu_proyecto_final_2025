@@ -1,0 +1,49 @@
+{
+  "pentagonos": [
+    { "base_index": 0, "vertice1": 0, "vertice2": 1 },
+    { "base_index": 0, "vertice1": 1, "vertice2": 2 },
+    { "base_index": 0, "vertice1": 2, "vertice2": 3 },
+    { "base_index": 0, "vertice1": 3, "vertice2": 4 },
+    { "base_index": 0, "vertice1": 4, "vertice2": 0 },
+
+    { "base_index": 1, "vertice1": 2, "vertice2": 3 },
+    { "base_index": 1, "vertice1": 3, "vertice2": 4 },
+
+    { "base_index": 2, "vertice1": 2, "vertice2": 3 },
+    { "base_index": 2, "vertice1": 3, "vertice2": 4 },
+
+    { "base_index": 3, "vertice1": 2, "vertice2": 3 },
+    { "base_index": 3, "vertice1": 3, "vertice2": 4 },
+
+    { "base_index": 4, "vertice1": 2, "vertice2": 3 },
+    { "base_index": 4, "vertice1": 3, "vertice2": 4 },
+
+    { "base_index": 5, "vertice1": 2, "vertice2": 3 },
+    { "base_index": 5, "vertice1": 3, "vertice2": 4 },
+
+    { "base_index": 6, "vertice1": 2, "vertice2": 3 },
+    { "base_index": 6, "vertice1": 3, "vertice2": 4 },
+
+    { "base_index": 7, "vertice1": 2, "vertice2": 3 },
+    { "base_index": 7, "vertice1": 3, "vertice2": 4 },
+
+    { "base_index": 8, "vertice1": 3, "vertice2": 4 },
+
+    { "base_index": 9, "vertice1": 2, "vertice2": 3 },
+    { "base_index": 9, "vertice1": 3, "vertice2": 4 },
+
+    { "base_index": 10, "vertice1": 3, "vertice2": 4 },
+
+    { "base_index": 11, "vertice1": 2, "vertice2": 3 },
+    { "base_index": 11, "vertice1": 3, "vertice2": 4 },
+
+    { "base_index": 12, "vertice1": 3, "vertice2": 4 },
+
+    { "base_index": 13, "vertice1": 2, "vertice2": 3 },
+    { "base_index": 13, "vertice1": 3, "vertice2": 4 },
+
+    { "base_index": 14, "vertice1": 3, "vertice2": 4 },
+
+    { "base_index": 15, "vertice1": 2, "vertice2": 3 }
+  ]
+}
