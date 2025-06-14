@@ -1,7 +1,9 @@
+#include <iostream>
 #include <SFML/Graphics.hpp>
 #include "model/Pentagono.hpp"
 #include "graphics/PentagonDrawer.hpp"
 #include "utils/JsonLoader.hpp"
+#include "utils/GeometryUtils.hpp"
 
 using namespace std;
 using namespace sf;
@@ -12,6 +14,8 @@ int main() {
 
     Font font;
     if (!font.loadFromFile("src/resources/roboto.ttf")) return -1;
+
+    int selectedIndex = 0;
 
     vector<ConvexShape> pentagons;
     vector<vector<Vector2f>> verticesList;
@@ -37,11 +41,53 @@ int main() {
         PentagonDrawer::addConnectedPentagon(p.base_index, p.vertice1, p.vertice2, font, pentagons, verticesList, labels);
     }
 
+    int totalPentagonos = pentagons.size();
+    vector<vector<int>> adjacencyList(totalPentagonos);
+
+    int currentIndex = 1; // el primer pentágono es el 0
+    for (const auto& p : pentagonos) {
+        int base = p.base_index;
+        int connected = currentIndex++;
+
+        // Asegúrate de no acceder fuera del rango
+        if (base < adjacencyList.size() && connected < adjacencyList.size()) {
+            adjacencyList[base].push_back(connected);
+            adjacencyList[connected].push_back(base);
+        }
+    }
+
+
     while (window.isOpen()) {
         Event event;
         while (window.pollEvent(event)) {
             if (event.type == Event::Closed)
                 window.close();
+
+            if (event.type == Event::MouseButtonPressed && event.mouseButton.button == Mouse::Left) {
+                Vector2f mousePos = window.mapPixelToCoords({event.mouseButton.x, event.mouseButton.y});
+
+                for (size_t i = 0; i < verticesList.size(); ++i) {
+                    if (isPointInsidePolygon(verticesList[i], mousePos)) {
+                        // Solo permitir cambio si i es adyacente a selectedIndex o es el mismo pentágono
+                        if (i == selectedIndex || 
+                            find(adjacencyList[selectedIndex].begin(), adjacencyList[selectedIndex].end(), i) != adjacencyList[selectedIndex].end()) {
+                            
+                            selectedIndex = i;
+                            cout << "Indexed: " << i << " : " << *adjacencyList[selectedIndex].begin() << endl;
+                            break;
+                        } else {
+                            cout << "Index: " << i << " : " << *adjacencyList[selectedIndex].begin() << endl;
+                        }
+                    }
+                }
+
+                // Actualizar colores
+                for (size_t i = 0; i < pentagons.size(); ++i) {
+                    pentagons[i].setFillColor(i == selectedIndex ? Color::Yellow : Color(160, 160, 160));
+                }
+            }
+
+
         }
 
         window.clear(Color::White);
