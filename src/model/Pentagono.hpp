@@ -7,6 +7,7 @@ struct Pentagono {
     int base_index;
     int vertice1;
     int vertice2;
+    int type;
 };
 
 void from_json(const json& json, Pentagono& pentagono);

@@ -3,4 +3,6 @@
 #include "../model/Pentagono.hpp"
 #include <string>
 
-bool loadPentagonosFromJson(const std::string& path, std::vector<Pentagono>& result);
+using namespace std;
+
+bool loadPentagonosFromJson(const string& path, vector<Pentagono>& result);

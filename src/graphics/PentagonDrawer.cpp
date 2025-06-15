@@ -1,11 +1,10 @@
 #include "PentagonDrawer.hpp"
 #include <cmath>
 
-const float radius = 80.f;
-
 using namespace std;
 using namespace sf;
 
+const float radius = 80.f;
 
 ConvexShape PentagonDrawer::createInitialPentagon(float cx, float cy, float rotation, vector<Vector2f>& vertices) {
     ConvexShape pentagon;

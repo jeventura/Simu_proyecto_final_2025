@@ -1,5 +1,6 @@
 #include <iostream>
 #include <SFML/Graphics.hpp>
+#include "model/PentagonType.hpp"
 #include "model/Pentagono.hpp"
 #include "graphics/PentagonDrawer.hpp"
 #include "utils/JsonLoader.hpp"
@@ -8,12 +9,32 @@
 using namespace std;
 using namespace sf;
 
+Color getColorByType(PentagonType type) {
+    switch(type) {
+        case PentagonType::START:
+            return Color::Green;
+        case PentagonType::FINISH:
+            return Color::Blue;
+        case PentagonType::WALL:
+            return Color::Black;
+        case PentagonType::ELECTRIC_WALL:
+            return Color::Red;
+        case PentagonType::FREE:
+            return Color(160, 160, 160);
+        case PentagonType::SWITCH:
+            return Color::Yellow;
+        default:
+            return Color(160, 160, 160);
+    }
+}
+
+
 int main() {
     RenderWindow window(VideoMode(1600, 1200), "Pentagon Grid");
     window.setFramerateLimit(60);
 
     Font font;
-    if (!font.loadFromFile("src/resources/roboto.ttf")) return -1;
+    if (!font.loadFromFile("src/resources/roboto.ttf")) return 1;
 
     int selectedIndex = 0;
 
@@ -37,7 +58,15 @@ int main() {
     vector<Pentagono> pentagonos;
     if (!loadPentagonosFromJson("src/resources/map_creation.json", pentagonos)) return 1;
 
-    for (const auto& p : pentagonos) {
+    int type = returnPentagonTypeAsInt(PentagonType::START);
+    for (int i = 0; i < pentagonos.size(); i++) {
+        const Pentagono& p = pentagonos[i];
+
+        // Encontramos el pentagono inicial y lo coloreamos
+        if(p.type == type) {
+            selectedIndex = i;
+            pentagons[i].setFillColor(i == selectedIndex ? Color::Yellow : Color(160, 160, 160));
+        }
         PentagonDrawer::addConnectedPentagon(p.base_index, p.vertice1, p.vertice2, font, pentagons, verticesList, labels);
     }
 
@@ -79,15 +108,14 @@ int main() {
 
                 for (size_t i = 0; i < verticesList.size(); ++i) {
                     if (isPointInsidePolygon(verticesList[i], mousePos)) {
-                        // Solo permitir cambio si i es adyacente a selectedIndex o es el mismo pentágono
-                        if (i == selectedIndex || 
-                            find(adjacencyList[selectedIndex].begin(), adjacencyList[selectedIndex].end(), i) != adjacencyList[selectedIndex].end()) {
-                            
+                        // Solo permitir cambio si i es adyacente a selectedIndex o es el mismo pentágono y si no es un wall o electric wall
+                        if (
+                            (i == selectedIndex || 
+                            find(adjacencyList[selectedIndex].begin(), adjacencyList[selectedIndex].end(), i) != adjacencyList[selectedIndex].end()) &&
+                            pentagonos[i].type != returnPentagonTypeAsInt(PentagonType::WALL)
+                        ) {
                             selectedIndex = i;
-                            cout << "Indexed: " << i << " : " << *adjacencyList[selectedIndex].begin() << endl;
                             break;
-                        } else {
-                            cout << "Index: " << i << " : " << *adjacencyList[selectedIndex].begin() << endl;
                         }
                     }
                 }
@@ -103,6 +131,12 @@ int main() {
 
         window.clear(Color::White);
         for (size_t i = 0; i < pentagons.size(); ++i) {
+            if(i != selectedIndex) {
+                PentagonType type = static_cast<PentagonType>(pentagonos[i].type);
+                Color color = getColorByType(type);
+                pentagons[i].setFillColor(color);
+            }
+        
             window.draw(pentagons[i]);
             window.draw(labels[i]);
 
