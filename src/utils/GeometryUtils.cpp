@@ -18,3 +18,19 @@ bool isPointInsidePolygon(const std::vector<sf::Vector2f>& polygon, const sf::Ve
 
     return (crossings % 2) == 1;
 }
+
+bool arePointsClose(Vector2f a, Vector2f b) {
+    return hypot(a.x - b.x, a.y - b.y) < 1.0f;
+}
+
+int countSharedVertices(const vector<Vector2f>& a, const vector<Vector2f>& b) {
+    int count = 0;
+    for (const auto& va : a) {
+        for (const auto& vb : b) {
+            if (arePointsClose(va, vb)) {
+                ++count;
+            }
+        }
+    }
+    return count;
+}

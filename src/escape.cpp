@@ -56,6 +56,17 @@ int main() {
         }
     }
 
+    for (size_t i = 0; i < verticesList.size(); ++i) {
+        for (size_t j = i + 1; j < verticesList.size(); ++j) {
+            if (countSharedVertices(verticesList[i], verticesList[j]) >= 2) {
+                // Verifica si ya están conectados
+                if (find(adjacencyList[i].begin(), adjacencyList[i].end(), j) == adjacencyList[i].end()) {
+                    adjacencyList[i].push_back(j);
+                    adjacencyList[j].push_back(i);
+                }
+            }
+        }
+    }
 
     while (window.isOpen()) {
         Event event;
