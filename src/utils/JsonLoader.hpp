@@ -5,4 +5,4 @@
 
 using namespace std;
 
-bool loadPentagonosFromJson(const string& path, vector<Pentagono>& result);
+bool loadDataFromJson(const string& path, vector<Pentagono>& result, int& steps);

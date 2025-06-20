@@ -5,7 +5,7 @@
 using namespace std;
 using json = nlohmann::json;
 
-bool loadPentagonosFromJson(const string& path, vector<Pentagono>& result) {
+bool loadDataFromJson(const string& path, vector<Pentagono>& result, int& steps) {
     ifstream file(path);
     if (!file.is_open()) return false;
 
@@ -13,8 +13,9 @@ bool loadPentagonosFromJson(const string& path, vector<Pentagono>& result) {
     file >> j;
 
     try {
-        if (j.contains("pentagonos")) {
+        if (j.contains("pentagonos") && j.contains("pasos")) {
             result = j["pentagonos"].get<vector<Pentagono>>();
+            steps = j["pasos"].get<int>();
             return true;
         }
     } catch (...) {

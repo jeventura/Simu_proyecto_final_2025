@@ -45,5 +45,6 @@
     { "base_index": 14, "vertice1": 3, "vertice2": 4 , "type": 3},
 
     { "base_index": 15, "vertice1": 2, "vertice2": 3 , "type": 1}
-  ]
+  ],
+  "pasos": 25
 }
