@@ -10,8 +10,9 @@ bool loadPentagonosFromJson(const string& path, vector<Pentagono>& result) {
     if (!file.is_open()) return false;
 
     json j;
+    file >> j;
+
     try {
-        file >> j;
         if (j.contains("pentagonos")) {
             result = j["pentagonos"].get<vector<Pentagono>>();
             return true;

@@ -22,7 +22,7 @@ Color getColorByType(PentagonType type) {
         case PentagonType::FREE:
             return Color(160, 160, 160);
         case PentagonType::SWITCH:
-            return Color::Yellow;
+            return Color::Green;
         default:
             return Color(160, 160, 160);
     }
@@ -37,6 +37,8 @@ int main() {
     if (!font.loadFromFile("src/resources/roboto.ttf")) return 1;
 
     int selectedIndex = 0;
+
+    map<Pentagono, bool> switches;
 
     vector<ConvexShape> pentagons;
     vector<vector<Vector2f>> verticesList;
@@ -56,16 +58,21 @@ int main() {
     labels.push_back(label);
 
     vector<Pentagono> pentagonos;
-    if (!loadPentagonosFromJson("src/resources/map_creation.json", pentagonos)) return 1;
+    if(!loadPentagonosFromJson("src/resources/map_creation.json", pentagonos)) return 1;
 
-    int type = returnPentagonTypeAsInt(PentagonType::START);
+    int startType = returnPentagonTypeAsInt(PentagonType::START);
+    int switchType = returnPentagonTypeAsInt(PentagonType::SWITCH);
+    int wallType = returnPentagonTypeAsInt(PentagonType::WALL);
+    int electricWallType = returnPentagonTypeAsInt(PentagonType::ELECTRIC_WALL);
     for (int i = 0; i < pentagonos.size(); i++) {
         const Pentagono& p = pentagonos[i];
 
         // Encontramos el pentagono inicial y lo coloreamos
-        if(p.type == type) {
+        if(p.type == startType) {
             selectedIndex = i;
             pentagons[i].setFillColor(i == selectedIndex ? Color::Yellow : Color(160, 160, 160));
+        } else if (p.type == switchType) {
+            switches[p] = false;
         }
         PentagonDrawer::addConnectedPentagon(p.base_index, p.vertice1, p.vertice2, font, pentagons, verticesList, labels);
     }
@@ -108,11 +115,29 @@ int main() {
 
                 for (size_t i = 0; i < verticesList.size(); ++i) {
                     if (isPointInsidePolygon(verticesList[i], mousePos)) {
+
+                        bool isWall = pentagonos[i].type == wallType;
+                        bool isSwitch = pentagonos[i].type == switchType;
+                        bool areSwitchesOpen, isElectricWall;
+
+                        if(isSwitch) {
+                            switches[pentagonos[i]] = !switches[pentagonos[i]];
+                            areSwitchesOpen = all_of(
+                                switches.begin(),
+                                switches.end(),
+                                [](const pair<Pentagono, bool>& pair) {
+                                    return pair.second;
+                                }
+                            );
+                        }
+
+                        isElectricWall = pentagonos[i].type == electricWallType && !areSwitchesOpen;
+
                         // Solo permitir cambio si i es adyacente a selectedIndex o es el mismo pentágono y si no es un wall o electric wall
                         if (
                             (i == selectedIndex || 
                             find(adjacencyList[selectedIndex].begin(), adjacencyList[selectedIndex].end(), i) != adjacencyList[selectedIndex].end()) &&
-                            pentagonos[i].type != returnPentagonTypeAsInt(PentagonType::WALL)
+                            !isWall && !isElectricWall
                         ) {
                             selectedIndex = i;
                             break;
