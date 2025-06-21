@@ -4,7 +4,7 @@
 using namespace std;
 using namespace sf;
 
-const float radius = 80.f;
+const float radius = 40.f;
 
 ConvexShape PentagonDrawer::createInitialPentagon(float cx, float cy, float rotation, vector<Vector2f>& vertices) {
     ConvexShape pentagon;

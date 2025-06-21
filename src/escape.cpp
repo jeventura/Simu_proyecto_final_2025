@@ -29,7 +29,6 @@ Color getColorByType(PentagonType type) {
     }
 }
 
-
 int main() {
     RenderWindow window(VideoMode(1600, 1200), "Pentagon Grid");
     window.setFramerateLimit(60);
@@ -48,7 +47,7 @@ int main() {
     vector<Text> labels;
 
     vector<Vector2f> v1;
-    auto p1 = PentagonDrawer::createInitialPentagon(800.f, 500.f, 0.f, v1);
+    auto p1 = PentagonDrawer::createInitialPentagon(725.f, 400.f, 0.f, v1);
     pentagons.push_back(p1);
     verticesList.push_back(v1);
 
