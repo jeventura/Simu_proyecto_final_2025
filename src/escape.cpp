@@ -6,6 +6,7 @@
 #include "utils/JsonLoader.hpp"
 #include "utils/GeometryUtils.hpp"
 #include "utils/DialogBox.hpp"
+#include "algorithm/bfs.hpp"
 
 using namespace std;
 using namespace sf;
@@ -17,13 +18,13 @@ Color getColorByType(PentagonType type) {
         case PentagonType::FINISH:
             return Color::Blue;
         case PentagonType::WALL:
-            return Color::Black;
+            return Color::Magenta;
         case PentagonType::ELECTRIC_WALL:
             return Color::Red;
         case PentagonType::FREE:
             return Color(160, 160, 160);
         case PentagonType::SWITCH:
-            return Color::Green;
+            return Color::Cyan;
         default:
             return Color(160, 160, 160);
     }
@@ -32,6 +33,10 @@ Color getColorByType(PentagonType type) {
 int main() {
     RenderWindow window(VideoMode(1600, 1200), "Pentagon Grid");
     window.setFramerateLimit(60);
+
+    int nodo_inicio;
+    int nodo_fin;
+    vector<int> solucion_bfs;
 
     Font font;
     if (!font.loadFromFile("src/resources/roboto.ttf")) return 1;
@@ -97,6 +102,12 @@ int main() {
 
         // Asegúrate de no acceder fuera del rango
         if (base < adjacencyList.size() && connected < adjacencyList.size()) {
+            if (p.type == startType) {
+                nodo_inicio = connected;
+            } else if (p.type == endType) {
+                nodo_fin = connected;
+            }
+
             adjacencyList[base].push_back(connected);
             adjacencyList[connected].push_back(base);
         }
@@ -212,6 +223,30 @@ int main() {
         stepsTitle.setString("Pasos restantes: " + to_string(steps));
         window.draw(stepsTitle);
         window.display();
+
+        if (Keyboard::isKeyPressed(Keyboard::R)) {
+            solucion_bfs = findShortestPath(nodo_inicio, nodo_fin,
+                                                adjacencyList, pentagonos, switches);
+        }
+
+    }
+
+    // Imprimir la lista de adyacencia
+
+    /*
+    for (int i = 0; i < adjacencyList.size(); ++i) {
+        cout << "Pentágono " << i + 1 << " está conectado con: ";
+        for (int j = 0; j < adjacencyList[i].size(); ++j) {
+            cout << adjacencyList[i][j] + 1<< " ";
+        }
+        cout << endl;
+    }
+    */
+
+    //Imprimir solucion
+
+    for (int index : solucion_bfs) {
+        cout << "Pentágono " << index << endl;
     }
 
     return 0;

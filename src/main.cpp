@@ -2,6 +2,7 @@
 #include "grid/Grid.h"
 
 using namespace sf;
+/*
 
 int main() {
     RenderWindow window(VideoMode(800, 600), "Escape the Grid");
@@ -30,3 +31,5 @@ int main() {
 
     return 0;
 }
+
+*/

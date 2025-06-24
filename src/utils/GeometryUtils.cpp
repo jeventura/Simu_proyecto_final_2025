@@ -1,4 +1,5 @@
 #include "GeometryUtils.hpp"
+#include "cmath"
 
 bool isPointInsidePolygon(const std::vector<sf::Vector2f>& polygon, const sf::Vector2f& point) {
     int crossings = 0;
