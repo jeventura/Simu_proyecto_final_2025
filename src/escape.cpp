@@ -74,7 +74,28 @@ string showFileDialog() {
     }
     
     #else
-    // Linux/macOS - usar zenity o kdialog
+    // Linux/macOS - usar zenity, kdialog, o herramientas nativas
+    // En macOS, intentamos usar osascript primero (nativo)
+    #ifdef __APPLE__
+    // macOS - usar osascript para abrir el explorador nativo
+    FILE* pipe = popen("osascript -e 'choose file with prompt \"Seleccionar archivo JSON del laberinto\" of type {\"public.json\"}' 2>/dev/null", "r");
+    if (pipe) {
+        char buffer[1024];
+        if (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+            selectedFile = string(buffer);
+            // Remover el salto de línea al final
+            if (!selectedFile.empty() && selectedFile[selectedFile.length()-1] == '\n') {
+                selectedFile.erase(selectedFile.length()-1);
+            }
+            // Remover comillas si las hay
+            if (selectedFile.length() >= 2 && selectedFile[0] == '"' && selectedFile[selectedFile.length()-1] == '"') {
+                selectedFile = selectedFile.substr(1, selectedFile.length()-2);
+            }
+        }
+        pclose(pipe);
+    }
+    #else
+    // Linux - usar zenity o kdialog
     // Primero intentamos zenity
     FILE* pipe = popen("zenity --file-selection --title='Seleccionar archivo JSON del laberinto' --file-filter='*.json' 2>/dev/null", "r");
     if (pipe) {
@@ -102,15 +123,20 @@ string showFileDialog() {
             pclose(pipe);
         }
     }
+    #endif
+    #endif
     
     // Si no se pudo abrir el explorador, mostrar mensaje
     if (selectedFile.empty()) {
         cout << "No se pudo abrir el explorador de archivos." << endl;
+        #ifdef __APPLE__
+        cout << "Usando archivo por defecto: src/resources/map_creation.json" << endl;
+        #else
         cout << "Por favor, instale zenity o kdialog en Linux, o use el archivo por defecto." << endl;
         cout << "Usando archivo por defecto: src/resources/map_creation.json" << endl;
+        #endif
         selectedFile = "src/resources/map_creation.json";
     }
-    #endif
     
     return selectedFile;
 }
@@ -153,6 +179,16 @@ int main() {
     int nodo_inicio;
     int nodo_fin;
     vector<int> solucion_bfs;
+    
+    // Variables para la animación de la solución
+    bool mostrarSolucion = false;
+    int pasoActual = 0;
+    float tiempoAnimacion = 0.0f;
+    const float TIEMPO_POR_PASO = 1.0f; // 1 segundo por paso
+    vector<int> pentagonosSolucion; // Índices de los pentágonos en la solución
+    
+    // Reloj para medir el tiempo entre frames
+    Clock frameClock;
 
     DialogBox dialog(font, 600, 120, gameWindow);
 
@@ -214,6 +250,29 @@ int main() {
     stepsTitle.setFillColor(Color::Black);
     stepsTitle.setOrigin(bounds.left + bounds.width, bounds.top);
     stepsTitle.setPosition(gameWindow.getSize().x - 10, 10);
+
+    // Crear botón "Resolver"
+    RectangleShape resolverButton(Vector2f(200, 50));
+    resolverButton.setFillColor(Color(70, 130, 180)); // Azul acero
+    resolverButton.setOutlineColor(Color::Black);
+    resolverButton.setOutlineThickness(2);
+    
+    // Centrar el botón en la parte inferior
+    float buttonX = (gameWindow.getSize().x - resolverButton.getSize().x) / 2;
+    float buttonY = gameWindow.getSize().y - resolverButton.getSize().y - 20;
+    resolverButton.setPosition(buttonX, buttonY);
+    
+    // Texto del botón
+    Text resolverText("Resolver", font, 24);
+    resolverText.setFillColor(Color::White);
+    FloatRect textBounds = resolverText.getLocalBounds();
+    resolverText.setOrigin(textBounds.left + textBounds.width / 2, textBounds.top + textBounds.height / 2);
+    resolverText.setPosition(buttonX + resolverButton.getSize().x / 2, buttonY + resolverButton.getSize().y / 2);
+
+    // Texto para mostrar progreso de la animación
+    Text progresoText("", font, 20);
+    progresoText.setFillColor(Color::Blue);
+    progresoText.setPosition(10, 50);
 
     int startType = returnPentagonTypeAsInt(PentagonType::START);
     int endType = returnPentagonTypeAsInt(PentagonType::FINISH);
@@ -283,7 +342,34 @@ int main() {
             if (event.type == Event::MouseButtonPressed && event.mouseButton.button == Mouse::Left) {
                 Vector2f mousePos = gameWindow.mapPixelToCoords({event.mouseButton.x, event.mouseButton.y});
 
-                // Clic en botón
+                // Verificar si se hizo clic en el botón "Resolver"
+                if (resolverButton.getGlobalBounds().contains(mousePos)) {
+                    solucion_bfs = findShortestPath(nodo_inicio, nodo_fin,
+                                                    adjacencyList, pentagonos, switches);
+                    
+                    if (solucion_bfs.empty()) {
+                        cout << "No se encontró una solución para el laberinto." << endl;
+                    } else {
+                        // Iniciar animación de la solución
+                        mostrarSolucion = true;
+                        pasoActual = 0;
+                        tiempoAnimacion = 0.0f;
+                        pentagonosSolucion = solucion_bfs;
+                        
+                        // Mostrar información en consola
+                        cout << "=== SOLUCION DEL LABERINTO ===" << endl;
+                        cout << "Camino más corto encontrado:" << endl;
+                        for (size_t i = 0; i < solucion_bfs.size(); ++i) {
+                            cout << "Paso " << (i + 1) << ": Pentágono " << solucion_bfs[i] << endl;
+                        }
+                        cout << "Total de pasos: " << solucion_bfs.size() - 1 << endl;
+                        cout << "================================" << endl;
+                        cout << "Animación iniciada. Observa el movimiento automático." << endl;
+                    }
+                    continue; // Continuar con el siguiente evento
+                }
+
+                // Clic en botón del diálogo
                 if (dialog.isButtonClicked(mousePos)) {
                         dialog.dismiss();
                         return 1;
@@ -360,34 +446,76 @@ int main() {
 
         dialog.draw(gameWindow);
 
+        // Lógica de animación de la solución
+        if (mostrarSolucion) {
+            float deltaTime = frameClock.restart().asSeconds();
+            tiempoAnimacion += deltaTime;
+            if (tiempoAnimacion >= TIEMPO_POR_PASO) {
+                tiempoAnimacion = 0.0f;
+                pasoActual++;
+                if (pasoActual < solucion_bfs.size()) {
+                    selectedIndex = solucion_bfs[pasoActual] - 1;
+                    steps--;
+                    if(pentagonos[selectedIndex].type == endType && steps >= 0) {
+                        dialog.setText("Ganaste!");
+                        dialog.show();
+                    } else if(pentagonos[selectedIndex].type != endType && steps <= 0) {
+                        dialog.setText("Te quedaste sin movimiento!");
+                        dialog.show();
+                    }
+                    cout << "Steps: " << steps << endl;
+                } else {
+                    mostrarSolucion = false;
+                    cout << "Animación completada." << endl;
+                }
+            }
+            
+            // Colorear pentágonos según la animación
+            for (size_t i = 0; i < pentagons.size(); ++i) {
+                if (i == selectedIndex) {
+                    // Pentágono actual - amarillo brillante
+                    pentagons[i].setFillColor(Color::Yellow);
+                } else if (pasoActual < solucion_bfs.size() && 
+                          find(solucion_bfs.begin(), solucion_bfs.begin() + pasoActual + 1, i + 1) != solucion_bfs.begin() + pasoActual + 1) {
+                    // Pentágonos ya visitados - verde claro
+                    pentagons[i].setFillColor(Color(144, 238, 144)); // Verde claro
+                } else if (pasoActual < solucion_bfs.size() && 
+                          find(solucion_bfs.begin() + pasoActual + 1, solucion_bfs.end(), i + 1) != solucion_bfs.end()) {
+                    // Pentágonos por visitar - azul claro
+                    pentagons[i].setFillColor(Color(173, 216, 230)); // Azul claro
+                } else {
+                    // Pentágonos normales según su tipo
+                    PentagonType type = static_cast<PentagonType>(pentagonos[i].type);
+                    Color color = getColorByType(type);
+                    pentagons[i].setFillColor(color);
+                }
+            }
+        } else {
+            // Modo normal - colorear según tipo
+            for (size_t i = 0; i < pentagons.size(); ++i) {
+                if(i != selectedIndex) {
+                    PentagonType type = static_cast<PentagonType>(pentagonos[i].type);
+                    Color color = getColorByType(type);
+                    pentagons[i].setFillColor(color);
+                }
+            }
+        }
+
         // Actualziar contador de pasos
         stepsTitle.setString("Pasos restantes: " + to_string(steps));
         gameWindow.draw(stepsTitle);
+        gameWindow.draw(resolverButton);
+        gameWindow.draw(resolverText);
+
+        // Mostrar progreso de la animación si está activa
+        if (mostrarSolucion && !solucion_bfs.empty()) {
+            string progreso = "Animación: Paso " + to_string(pasoActual + 1) + " de " + to_string(solucion_bfs.size());
+            progresoText.setString(progreso);
+            gameWindow.draw(progresoText);
+        }
+
         gameWindow.display();
 
-        if (Keyboard::isKeyPressed(Keyboard::R)) {
-            solucion_bfs = findShortestPath(nodo_inicio, nodo_fin,
-                                                adjacencyList, pentagonos, switches);
-        }
-
-    }
-
-    // Imprimir la lista de adyacencia
-
-    /*
-    for (int i = 0; i < adjacencyList.size(); ++i) {
-        cout << "Pentágono " << i + 1 << " está conectado con: ";
-        for (int j = 0; j < adjacencyList[i].size(); ++j) {
-            cout << adjacencyList[i][j] + 1<< " ";
-        }
-        cout << endl;
-    }
-    */
-
-    //Imprimir solucion
-
-    for (int index : solucion_bfs) {
-        cout << "Pentágono " << index << endl;
     }
 
     return 0;
