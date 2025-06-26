@@ -7,6 +7,23 @@
 #include "utils/GeometryUtils.hpp"
 #include "utils/DialogBox.hpp"
 #include "algorithm/bfs.hpp"
+#include <string>
+
+// Incluir filesystem solo si está disponible
+#if defined(__cpp_lib_filesystem) || (defined(_MSC_VER) && _MSC_VER >= 1914) || \
+    (defined(__GNUC__) && __GNUC__ >= 8) || (defined(__clang__) && __clang_major__ >= 7)
+#include <filesystem>
+#endif
+
+// Includes para funciones del sistema operativo
+#ifdef _WIN32
+#include <windows.h>
+#include <commdlg.h>
+#else
+#include <dirent.h>
+#include <sys/stat.h>
+#include <cstdlib>
+#endif
 
 using namespace std;
 using namespace sf;
@@ -30,18 +47,114 @@ Color getColorByType(PentagonType type) {
     }
 }
 
+string showFileDialog() {
+    string selectedFile = "";
+    
+    #ifdef _WIN32
+    // Windows - usar GetOpenFileName
+    char filename[MAX_PATH];
+    
+    OPENFILENAME ofn;
+    ZeroMemory(&filename, sizeof(filename));
+    ZeroMemory(&ofn, sizeof(ofn));
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = NULL;
+    ofn.lpstrFilter = "Archivos JSON\0*.json\0Todos los archivos\0*.*\0";
+    ofn.lpstrFile = filename;
+    ofn.lpstrFile[0] = '\0';
+    ofn.nMaxFile = sizeof(filename);
+    ofn.lpstrFilterIndex = 1;
+    ofn.lpstrFileTitle = NULL;
+    ofn.nMaxFileTitle = 0;
+    ofn.lpstrInitialDir = NULL;
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+    
+    if (GetOpenFileName(&ofn)) {
+        selectedFile = string(filename);
+    }
+    
+    #else
+    // Linux/macOS - usar zenity o kdialog
+    // Primero intentamos zenity
+    FILE* pipe = popen("zenity --file-selection --title='Seleccionar archivo JSON del laberinto' --file-filter='*.json' 2>/dev/null", "r");
+    if (pipe) {
+        char buffer[1024];
+        if (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+            selectedFile = string(buffer);
+            // Remover el salto de línea al final
+            if (!selectedFile.empty() && selectedFile[selectedFile.length()-1] == '\n') {
+                selectedFile.erase(selectedFile.length()-1);
+            }
+        }
+        pclose(pipe);
+    } else {
+        // Si zenity no está disponible, intentar kdialog
+        pipe = popen("kdialog --getopenfilename --title 'Seleccionar archivo JSON del laberinto' '*.json' 2>/dev/null", "r");
+        if (pipe) {
+            char buffer[1024];
+            if (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+                selectedFile = string(buffer);
+                // Remover el salto de línea al final
+                if (!selectedFile.empty() && selectedFile[selectedFile.length()-1] == '\n') {
+                    selectedFile.erase(selectedFile.length()-1);
+                }
+            }
+            pclose(pipe);
+        }
+    }
+    
+    // Si no se pudo abrir el explorador, mostrar mensaje
+    if (selectedFile.empty()) {
+        cout << "No se pudo abrir el explorador de archivos." << endl;
+        cout << "Por favor, instale zenity o kdialog en Linux, o use el archivo por defecto." << endl;
+        cout << "Usando archivo por defecto: src/resources/map_creation.json" << endl;
+        selectedFile = "src/resources/map_creation.json";
+    }
+    #endif
+    
+    return selectedFile;
+}
+
+string showFileSelector(RenderWindow& window, Font& font) {
+    // Cerrar la ventana temporalmente para mostrar el diálogo de archivo
+    window.setVisible(false);
+    
+    string selectedFile = showFileDialog();
+    
+    // Reabrir la ventana
+    window.setVisible(true);
+    
+    return selectedFile;
+}
+
 int main() {
-    RenderWindow window(VideoMode(1600, 1200), "Pentagon Grid");
+    RenderWindow window(VideoMode(800, 600), "Selector de Laberinto");
     window.setFramerateLimit(60);
+
+    Font font;
+    if (!font.loadFromFile("src/resources/roboto.ttf")) {
+        cout << "Error: No se pudo cargar la fuente" << endl;
+        return 1;
+    }
+
+    // Mostrar selector de archivo
+    string filePath = showFileSelector(window, font);
+    
+    if (filePath.empty()) {
+        return 0; // Usuario cerró la ventana
+    }
+    
+    // Cerrar ventana de selección y crear ventana del juego
+    window.close();
+    
+    RenderWindow gameWindow(VideoMode(1600, 1200), "Pentagon Grid");
+    gameWindow.setFramerateLimit(60);
 
     int nodo_inicio;
     int nodo_fin;
     vector<int> solucion_bfs;
 
-    Font font;
-    if (!font.loadFromFile("src/resources/roboto.ttf")) return 1;
-
-    DialogBox dialog(font, 600, 120, window);
+    DialogBox dialog(font, 600, 120, gameWindow);
 
     int selectedIndex = 0;
 
@@ -58,7 +171,35 @@ int main() {
 
     vector<Pentagono> pentagonos;
     int steps;
-    if(!loadDataFromJson("src/resources/map_creation.json", pentagonos, steps)) return 1;
+    if(!loadDataFromJson(filePath, pentagonos, steps)) {
+        // Mostrar error en una ventana gráfica
+        RenderWindow errorWindow(VideoMode(600, 200), "Error");
+        errorWindow.setFramerateLimit(60);
+        
+        Text errorText("Error: No se pudo cargar el archivo del laberinto\n" + filePath, font, 20);
+        errorText.setFillColor(Color::Red);
+        errorText.setPosition(50, 50);
+        
+        Text instructionText("Presione cualquier tecla para salir", font, 16);
+        instructionText.setFillColor(Color::Black);
+        instructionText.setPosition(50, 120);
+        
+        while (errorWindow.isOpen()) {
+            Event event;
+            while (errorWindow.pollEvent(event)) {
+                if (event.type == Event::Closed || 
+                    (event.type == Event::KeyPressed)) {
+                    errorWindow.close();
+                }
+            }
+            
+            errorWindow.clear(Color::White);
+            errorWindow.draw(errorText);
+            errorWindow.draw(instructionText);
+            errorWindow.display();
+        }
+        return 1;
+    }
 
     Vector2f center(0.f, 0.f);
     for (auto& p : v1) center += p;
@@ -72,7 +213,7 @@ int main() {
 
     stepsTitle.setFillColor(Color::Black);
     stepsTitle.setOrigin(bounds.left + bounds.width, bounds.top);
-    stepsTitle.setPosition(window.getSize().x - 10, 10);
+    stepsTitle.setPosition(gameWindow.getSize().x - 10, 10);
 
     int startType = returnPentagonTypeAsInt(PentagonType::START);
     int endType = returnPentagonTypeAsInt(PentagonType::FINISH);
@@ -125,11 +266,11 @@ int main() {
         }
     }
 
-    while (window.isOpen()) {
+    while (gameWindow.isOpen()) {
         Event event;
-        while (window.pollEvent(event)) {
+        while (gameWindow.pollEvent(event)) {
             if (event.type == Event::Closed)
-                window.close();
+                gameWindow.close();
 
             // Enter o Espacio
             if (event.type == Event::KeyPressed &&
@@ -140,7 +281,7 @@ int main() {
             }
 
             if (event.type == Event::MouseButtonPressed && event.mouseButton.button == Mouse::Left) {
-                Vector2f mousePos = window.mapPixelToCoords({event.mouseButton.x, event.mouseButton.y});
+                Vector2f mousePos = gameWindow.mapPixelToCoords({event.mouseButton.x, event.mouseButton.y});
 
                 // Clic en botón
                 if (dialog.isButtonClicked(mousePos)) {
@@ -197,7 +338,7 @@ int main() {
             }
         }
 
-        window.clear(Color::White);
+        gameWindow.clear(Color::White);
         for (size_t i = 0; i < pentagons.size(); ++i) {
             if(i != selectedIndex) {
                 PentagonType type = static_cast<PentagonType>(pentagonos[i].type);
@@ -205,24 +346,24 @@ int main() {
                 pentagons[i].setFillColor(color);
             }
         
-            window.draw(pentagons[i]);
-            window.draw(labels[i]);
+            gameWindow.draw(pentagons[i]);
+            gameWindow.draw(labels[i]);
 
             for (int j = 0; j < 5; ++j) {
                 Vector2f v = verticesList[i][j];
                 Text vLabel(to_string(j), font, 14);
                 vLabel.setFillColor(Color::Red);
                 vLabel.setPosition(v.x - 5, v.y - 5);
-                window.draw(vLabel);
+                gameWindow.draw(vLabel);
             }
         }
 
-        dialog.draw(window);
+        dialog.draw(gameWindow);
 
         // Actualziar contador de pasos
         stepsTitle.setString("Pasos restantes: " + to_string(steps));
-        window.draw(stepsTitle);
-        window.display();
+        gameWindow.draw(stepsTitle);
+        gameWindow.display();
 
         if (Keyboard::isKeyPressed(Keyboard::R)) {
             solucion_bfs = findShortestPath(nodo_inicio, nodo_fin,
